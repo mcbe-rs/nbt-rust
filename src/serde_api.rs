@@ -126,6 +126,10 @@ pub fn from_be_bytes<T: DeserializeOwned>(bytes: &[u8]) -> Result<T> {
     from_be_bytes_with_config(bytes, &NbtReadConfig::default())
 }
 
+pub fn from_be_bytes_named<T: DeserializeOwned>(bytes: &[u8]) -> Result<(String, T)> {
+    from_be_bytes_named_with_config(bytes, &NbtReadConfig::default())
+}
+
 pub fn from_le_bytes<T: DeserializeOwned>(bytes: &[u8]) -> Result<T> {
     from_le_bytes_with_config(bytes, &NbtReadConfig::default())
 }
@@ -142,6 +146,17 @@ pub fn from_be_bytes_with_config<T: DeserializeOwned>(
     let root = read_tag_with_config::<BigEndian, _>(&mut cursor, config)?;
     ensure_consumed(bytes.len(), cursor.position() as usize)?;
     from_root_tag(&root)
+}
+
+pub fn from_be_bytes_named_with_config<T: DeserializeOwned>(
+    bytes: &[u8],
+    config: &NbtReadConfig,
+) -> Result<(String, T)> {
+    let mut cursor = Cursor::new(bytes);
+    let root = read_tag_with_config::<BigEndian, _>(&mut cursor, config)?;
+    ensure_consumed(bytes.len(), cursor.position() as usize)?;
+    let value = from_root_tag(&root)?;
+    Ok((root.name, value))
 }
 
 pub fn from_le_bytes_with_config<T: DeserializeOwned>(
@@ -377,6 +392,15 @@ mod tests {
         let input = sample();
         let bytes = to_be_bytes(&input).unwrap();
         let output: DemoData = from_be_bytes(&bytes).unwrap();
+        assert_eq!(output, input);
+    }
+
+    #[test]
+    fn be_bytes_named_roundtrip_typed() {
+        let input = sample();
+        let bytes = to_be_bytes_named("PlayerData", &input).unwrap();
+        let (root_name, output): (String, DemoData) = from_be_bytes_named(&bytes).unwrap();
+        assert_eq!(root_name, "PlayerData");
         assert_eq!(output, input);
     }
 
